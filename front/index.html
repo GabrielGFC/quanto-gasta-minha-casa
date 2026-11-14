@@ -1,0 +1,515 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quanto gasta minha casa</title>
+<style>
+  :root {
+    --bg:#f4f7f6; --card:#ffffff; --ink:#1f2a2e; --muted:#6c7a80; --line:#e2e8e6;
+    --accent:#2a7f6f; --accent-soft:#e3f2ee; --sol:#f2b63c; --alerta:#d0573f;
+    --r:18px; --ease:cubic-bezier(.2,.7,.2,1);
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font-family:"Segoe UI",system-ui,-apple-system,Roboto,sans-serif; font-size:17px; line-height:1.5; }
+  .wrap { max-width:1160px; margin:0 auto; padding:0 20px; }
+  header { padding:26px 0 8px; display:flex; justify-content:space-between; align-items:center; }
+  header b { font-size:1.05rem; } header span { color:var(--muted); font-size:.85rem; }
+
+  .app { display:grid; grid-template-columns:1fr 1fr; gap:24px; padding:10px 0 40px; align-items:start; }
+  @media (max-width:900px){ .app { grid-template-columns:1fr; } .palco { order:-1; } }
+
+  .card { background:var(--card); border-radius:var(--r); padding:28px; box-shadow:0 1px 2px rgba(0,0,0,.04), 0 8px 30px rgba(0,0,0,.04); }
+  .progresso { display:flex; gap:6px; margin-bottom:22px; }
+  .progresso i { flex:1; height:5px; border-radius:3px; background:var(--line); transition:background .4s; }
+  .progresso i.feito { background:var(--accent); }
+  .passo { display:none; animation:aparece .5s var(--ease); }
+  .passo.ativo { display:block; }
+  @keyframes aparece { from { opacity:0; transform:translateX(12px); } to { opacity:1; transform:none; } }
+  .passo h2 { font-size:1.6rem; line-height:1.2; margin:0 0 8px; font-weight:700; letter-spacing:-.01em; }
+  .passo .ajuda { color:var(--muted); margin:0 0 22px; }
+
+  .opcoes { display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:10px; }
+  .op { border:2px solid var(--line); background:#fff; border-radius:14px; padding:16px 12px; font:inherit; cursor:pointer; text-align:center; transition:.2s; }
+  .op small { display:block; color:var(--muted); font-size:.8rem; margin-top:2px; }
+  .op:hover { border-color:var(--accent); }
+  .op[aria-pressed="true"] { border-color:var(--accent); background:var(--accent-soft); font-weight:700; }
+
+  label.campo { display:block; margin-bottom:18px; }
+  label.campo > span { display:block; font-weight:600; margin-bottom:6px; }
+  label.campo small { display:block; color:var(--muted); font-weight:400; font-size:.85rem; margin-top:4px; }
+  input[type=number], input[type=text], select { width:100%; font:inherit; padding:12px 14px; border:2px solid var(--line); border-radius:12px; background:#fff; color:var(--ink); outline:none; transition:border-color .2s; }
+  input:focus, select:focus { border-color:var(--accent); }
+  input[type=range] { width:100%; accent-color:var(--accent); }
+  .extremos { display:flex; justify-content:space-between; color:var(--muted); font-size:.85rem; }
+  .local { margin-top:8px; font-size:.95rem; min-height:1.5em; }
+  .local.ok { color:var(--accent); } .local.erro { color:var(--alerta); }
+
+  .janela { display:grid; grid-template-columns:1.3fr .8fr 1fr 1fr 36px; gap:8px; align-items:end; padding:12px; border:2px solid var(--line); border-radius:14px; margin-bottom:10px; }
+  .janela label { font-size:.75rem; color:var(--muted); display:block; }
+  .janela input, .janela select { padding:9px 10px; border-radius:10px; }
+  .janela .m2 { grid-column:1/-1; font-size:.85rem; color:var(--muted); }
+  .janela button { height:40px; border:0; background:none; color:var(--muted); font-size:1.3rem; cursor:pointer; border-radius:10px; }
+  .janela button:hover { background:#f6e3df; color:var(--alerta); }
+  @media (max-width:560px){ .janela { grid-template-columns:1fr 1fr; } .janela button { grid-column:2; justify-self:end; } }
+  .add { width:100%; padding:12px; border:2px dashed var(--line); background:none; border-radius:14px; font:inherit; color:var(--accent); cursor:pointer; font-weight:600; }
+  .add:hover { border-color:var(--accent); }
+  .resumo-vidro { margin-top:14px; padding:12px 14px; background:var(--accent-soft); border-radius:12px; font-size:.92rem; }
+
+  .nav { display:flex; justify-content:space-between; gap:10px; margin-top:26px; }
+  .btn { font:inherit; font-weight:700; border-radius:14px; padding:14px 22px; cursor:pointer; border:2px solid transparent; transition:.2s; }
+  .btn.prim { background:var(--accent); color:#fff; flex:1; } .btn.prim:hover { filter:brightness(1.08); }
+  .btn.sec { background:none; border-color:var(--line); color:var(--ink); }
+  .btn:disabled { opacity:.5; cursor:default; }
+
+  .palco { position:sticky; top:16px; padding:0; overflow:hidden; }
+  #cena { width:100%; aspect-ratio:4/3.2; display:block; cursor:grab; touch-action:none; }
+  .legenda-palco { display:flex; justify-content:space-between; padding:12px 20px 16px; font-size:.82rem; color:var(--muted); border-top:1px solid var(--line); }
+
+  .resultado h2 { font-size:1.2rem; color:var(--muted); font-weight:600; margin:0; }
+  .grande { font-size:clamp(2.8rem,7vw,4.2rem); font-weight:800; letter-spacing:-.03em; line-height:1.05; margin:6px 0 4px; }
+  .frase { font-size:1.08rem; margin:0 0 20px; }
+  .barras { display:flex; height:14px; border-radius:8px; overflow:hidden; margin:8px 0 10px; }
+  .barras i { display:block; transition:flex-grow 1s var(--ease); }
+  .itens { display:flex; flex-wrap:wrap; gap:14px; font-size:.88rem; color:var(--muted); margin-bottom:20px; }
+  .itens b { display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:6px; vertical-align:middle; }
+  .bloco-explica { background:#f8faf9; border-radius:14px; padding:18px 20px; margin-top:16px; }
+  .bloco-explica h3 { margin:0 0 10px; font-size:1rem; }
+  .bloco-explica ol { margin:0; padding-left:20px; } .bloco-explica li { margin-bottom:6px; }
+  .compara { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:16px; }
+  .compara div { background:#f8faf9; border-radius:14px; padding:14px 16px; }
+  .compara span { display:block; font-size:.8rem; color:var(--muted); } .compara strong { font-size:1.3rem; }
+  .aviso { font-size:.85rem; color:var(--muted); margin-top:16px; }
+  .erro-box { background:#fbeae6; color:#8c2f1e; padding:14px; border-radius:12px; }
+
+  details.tec { margin:10px 0 40px; }
+  details.tec summary { cursor:pointer; font-weight:700; padding:18px 0; list-style:none; color:var(--muted); }
+  details.tec summary::after { content:" +"; } details.tec[open] summary::after { content:" −"; }
+  .tec-grid { display:grid; grid-template-columns:1fr 1fr; gap:18px; } @media (max-width:820px){ .tec-grid { grid-template-columns:1fr; } }
+  pre { background:#fff; border-radius:12px; padding:14px; overflow:auto; font-size:.76rem; margin:0; border:1px solid var(--line); }
+  table { width:100%; border-collapse:collapse; font-size:.85rem; } td,th { text-align:left; padding:7px 4px; border-bottom:1px solid var(--line); vertical-align:top; } th { color:var(--muted); font-weight:600; }
+  .tec h4 { margin:0 0 8px; font-size:.8rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); }
+  footer { padding:24px 0 50px; font-size:.8rem; color:var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header><b>Quanto gasta minha casa?</b><span>Inteligência Artificial · Goiás</span></header>
+
+  <div class="app">
+    <div class="card" id="assistente">
+      <div class="progresso" id="progresso"></div>
+
+      <!-- 1 -->
+      <section class="passo" data-passo="1">
+        <h2>Onde fica a sua casa?</h2>
+        <p class="ajuda">Digite o CEP. Com ele a gente descobre a cidade e usa o preço da luz de Goiás.</p>
+        <label class="campo"><span>CEP</span><input id="cep" type="text" inputmode="numeric" placeholder="74000-000" maxlength="9"></label>
+        <div class="local" id="local"></div>
+      </section>
+
+      <!-- 2 -->
+      <section class="passo" data-passo="2">
+        <h2>Você mora em casa ou apartamento?</h2>
+        <p class="ajuda">Num apartamento, as paredes encostadas nos vizinhos quase não deixam o calor entrar ou sair.</p>
+        <div class="opcoes" data-campo="tipo">
+          <button class="op" data-v="casa">Casa</button>
+          <button class="op" data-v="apartamento">Apartamento</button>
+        </div>
+        <div id="so-casa" style="margin-top:22px">
+          <label class="campo"><span>Quantos andares a casa tem?</span></label>
+          <div class="opcoes" data-campo="andares">
+            <button class="op" data-v="1">Um andar<small>casa térrea</small></button>
+            <button class="op" data-v="2">Dois andares<small>sobrado</small></button>
+          </div>
+        </div>
+        <div id="so-apto" style="margin-top:22px" hidden>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <label class="campo"><span>Quantos andares tem o prédio?</span><input id="predio" type="number" min="1" max="200" value="10"></label>
+            <label class="campo"><span>Em que andar você mora?</span><input id="andar" type="number" min="0" max="199" value="5"><small>Térreo = 0</small></label>
+          </div>
+          <label class="campo"><span>Quais lados do apartamento dão para a rua ou para fora do prédio?</span>
+            <small style="margin:0 0 8px">Os outros encostam em outro apartamento ou no corredor.</small></label>
+          <div class="opcoes" id="lados-fora">
+            <button class="op" data-l="frente">Frente</button><button class="op" data-l="direita">Direita</button>
+            <button class="op" data-l="fundos">Fundos</button><button class="op" data-l="esquerda">Esquerda</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3 -->
+      <section class="passo" data-passo="3">
+        <h2>Qual é o tamanho e o jeito da casa?</h2>
+        <p class="ajuda">O tamanho do chão de todos os cômodos somados. Se não souber, olhe no carnê do IPTU.</p>
+        <label class="campo"><span>Tamanho da casa (m²)</span><input id="area" type="number" min="20" max="2000" value="120"></label>
+        <label class="campo"><span>A casa é mais quadradinha ou mais comprida?</span>
+          <input type="range" id="formato" min="0" max="5" step="1" value="2">
+          <div class="extremos"><span>Quadradinha</span><span>Comprida</span></div>
+          <small>Casa quadradinha tem menos parede encostando no sol e no frio, então perde menos energia.</small>
+        </label>
+      </section>
+
+      <!-- 4 -->
+      <section class="passo" data-passo="4">
+        <h2>Para onde a porta de entrada olha?</h2>
+        <p class="ajuda">Dica: saia pela porta de entrada de manhã. Se o sol estiver nascendo do seu lado direito, a porta olha para o norte. No apartamento, use a janela da sala: fique de costas para a porta e veja para onde a sala aponta.</p>
+        <div class="opcoes" data-campo="orientacao">
+          <button class="op" data-v="2">Norte</button><button class="op" data-v="3">Leste<small>onde o sol nasce</small></button>
+          <button class="op" data-v="4">Sul</button><button class="op" data-v="5">Oeste<small>onde o sol se põe</small></button>
+        </div>
+      </section>
+
+      <!-- 5 -->
+      <section class="passo" data-passo="5">
+        <h2>Agora, as janelas e as portas</h2>
+        <p class="ajuda">Meça com uma trena. Direita e esquerda são de quem está saindo pela porta de entrada.</p>
+        <div id="lista-janelas"></div>
+        <button class="add" id="add-janela">+ Adicionar janelas</button>
+        <h3 style="margin:26px 0 6px;font-size:1.1rem">Portas</h3>
+        <p class="ajuda" style="margin-bottom:12px">Toda casa tem pelo menos a porta de entrada. Porta de vidro deixa o calor passar como janela; porta de madeira ou metal funciona como parede.</p>
+        <div id="lista-portas"></div>
+        <button class="add" id="add-porta">+ Adicionar porta</button>
+        <div class="resumo-vidro" id="resumo-vidro"></div>
+      </section>
+
+      <!-- 6 -->
+      <section class="passo" data-passo="6">
+        <h2>Ar-condicionado e outros aparelhos</h2>
+        <p class="ajuda">Esses números deixam a conta mais perto da real. Se não souber, pode deixar como está.</p>
+        <label class="campo"><span>Quantos m² da casa têm ar-condicionado?</span><input id="area-ar" type="number" min="0" value="30"><small>Um quarto médio tem uns 12 m².</small></label>
+        <label class="campo"><span>Eficiência do ar-condicionado</span>
+          <select id="cop"><option value="3.2">Não sei</option><option value="2.8">Aparelho antigo</option><option value="3.2">Aparelho comum</option><option value="5">Inverter novo</option></select>
+          <small>Os aparelhos mais novos gastam menos energia para esfriar a mesma coisa. O número exato está na etiqueta amarela do INMETRO.</small></label>
+        <label class="campo"><span>Gasto do resto da casa (kWh por mês)</span><input id="outros" type="number" min="0" value="150"><small>Geladeira, chuveiro, TV, lâmpadas. Olhe o "consumo" numa conta antiga e tire uma parte para o ar.</small></label>
+        <label class="campo"><span>Iluminação pública (R$)</span><input id="cip" type="number" min="0" step="0.01" value="0"><small>Vem escrito na conta como "Contrib. Ilum. Pública".</small></label>
+      </section>
+
+      <!-- 7 resultado -->
+      <section class="passo resultado" data-passo="7" id="resultado"></section>
+
+      <div class="nav">
+        <button class="btn sec" id="voltar">Voltar</button>
+        <button class="btn prim" id="avancar">Começar</button>
+      </div>
+    </div>
+
+    <div class="card palco">
+      <canvas id="cena"></canvas>
+      <div class="legenda-palco"><span id="leg-frente">Frente: norte</span><span>Arraste para girar</span></div>
+    </div>
+  </div>
+
+  <details class="tec card" id="tec">
+    <summary>Detalhes técnicos para o professor</summary>
+    <div class="tec-grid">
+      <div>
+        <h4>Como o cálculo acontece</h4>
+        <table><tbody>
+          <tr><td>1</td><td>O front envia a casa descrita pela pessoa (andares, formato, frente, área de piso e janelas medidas) para <code>POST /conta</code>.</td></tr>
+          <tr><td>2</td><td><code>/analisar</code> converte as janelas: vidro = quantidade × largura × altura; % de vidro = vidro ÷ área de piso (mesma definição da base ENB2012).</td></tr>
+          <tr><td>3</td><td>A base só tem 0, 10, 25 e 40% de vidro. O SVR roda nos dois níveis vizinhos e o resultado é interpolado linearmente.</td></tr>
+          <tr><td>4</td><td>Se um lado concentra 40% ou mais do vidro, a distribuição é "concentrada" naquele lado (convertido para N/L/S/O pela frente); senão, "uniforme".</td></tr>
+          <tr><td>5</td><td>SVR de aquecimento (MAE 0,34) e SVR de resfriamento (MAE 0,85) passam pelo mesmo StandardScaler do treino.</td></tr>
+          <tr><td>6</td><td>kWh elétrico = carga térmica × área climatizada ÷ eficiência do aparelho; mês = ano ÷ 12.</td></tr>
+          <tr><td>7</td><td>Preço = (tarifa + bandeira) ÷ (1 − ICMS − PIS/COFINS) + iluminação pública. Valores e fontes em <code>api/tarifas_goias.json</code>.</td></tr>
+        </tbody></table>
+        <h4 style="margin-top:18px">Modelos</h4>
+        <table><tbody id="tab-modelos"></tbody></table>
+      </div>
+      <div>
+        <h4>Requisição</h4><pre id="req">—</pre>
+        <h4 style="margin-top:14px">Resposta</h4><pre id="res">—</pre>
+      </div>
+    </div>
+    <p style="font-size:.85rem;color:var(--muted)">Swagger com todos os endpoints: <a href="/docs" target="_blank">/docs</a>.</p>
+  </details>
+  <footer>Dados: Energy Efficiency, UCI Machine Learning Repository (Tsanas e Xifara, 2012), 768 casas simuladas. Tarifa: Equatorial Goiás, reajuste de 22/10/2026.</footer>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const TOTAL = 7;
+let passo = 1;
+const estado = { tipo:"casa", andares:"1", orientacao:"2", cidade:null, fora:new Set(["frente","direita"]) };
+let portas = [{ lado:'frente', quantidade:1, largura_m:0.8, altura_m:2.1, material:'madeira' }];
+let janelas = [
+  { lado:'direita', quantidade:2, largura_m:2, altura_m:1.4 },
+  { lado:'frente', quantidade:1, largura_m:1.5, altura_m:1.2 },
+];
+const LADOS = { frente:'Frente', direita:'Direita', fundos:'Fundos', esquerda:'Esquerda' };
+const DIR = { "2":"norte", "3":"leste", "4":"sul", "5":"oeste" };
+const brl = v => v.toLocaleString('pt-BR', { style:'currency', currency:'BRL' });
+const num = (v, c = 1) => Number(v).toLocaleString('pt-BR', { minimumFractionDigits:c, maximumFractionDigits:c });
+
+/* ---------- passos ---------- */
+$('progresso').innerHTML = Array.from({ length:TOTAL }, () => '<i></i>').join('');
+function irPara(n) {
+  passo = Math.max(1, Math.min(TOTAL, n));
+  document.querySelectorAll('.passo').forEach(s => s.classList.toggle('ativo', +s.dataset.passo === passo));
+  document.querySelectorAll('#progresso i').forEach((b, i) => b.classList.toggle('feito', i < passo));
+  $('voltar').style.visibility = passo === 1 ? 'hidden' : 'visible';
+  $('avancar').textContent = passo === 6 ? 'Ver minha conta' : passo === TOTAL ? 'Começar de novo' : 'Continuar';
+  if (passo === TOTAL) calcular();
+}
+$('voltar').onclick = () => irPara(passo - 1);
+$('avancar').onclick = async () => {
+  if (passo === 1 && !(await validarCep())) return;
+  if (passo === 3 && !(+$('area').value >= 20)) { $('area').focus(); return; }
+  irPara(passo === TOTAL ? 1 : passo + 1);
+};
+
+/* ---------- CEP ---------- */
+$('cep').addEventListener('input', e => {
+  let v = e.target.value.replace(/\D/g, '').slice(0, 8);
+  if (v.length > 5) v = v.slice(0, 5) + '-' + v.slice(5);
+  e.target.value = v; $('local').textContent = ''; estado.cidade = null;
+  if (v.length === 9) validarCep();
+});
+async function validarCep() {
+  const cep = $('cep').value.replace(/\D/g, ''), el = $('local');
+  if (cep.length !== 8) { el.className = 'local erro'; el.textContent = 'O CEP tem 8 números.'; return false; }
+  if (estado.cidade) return true;
+  el.className = 'local'; el.textContent = 'Procurando…';
+  try {
+    const d = await (await fetch(`https://viacep.com.br/ws/${cep}/json/`)).json();
+    if (d.erro) { el.className = 'local erro'; el.textContent = 'Não achei esse CEP. Confere os números?'; return false; }
+    if (d.uf !== 'GO') { el.className = 'local erro'; el.textContent = `Esse CEP é de ${d.localidade}, ${d.uf}. Por enquanto o cálculo é só para Goiás.`; return false; }
+    estado.cidade = d.localidade; el.className = 'local ok'; el.textContent = `${d.localidade}, Goiás. Conta da Equatorial Goiás.`; return true;
+  } catch {
+    const ok = cep >= '72800000' && cep <= '76799999';
+    el.className = 'local ' + (ok ? 'ok' : 'erro');
+    el.textContent = ok ? 'CEP de Goiás.' : 'Esse CEP não parece ser de Goiás.';
+    return ok;
+  }
+}
+
+/* ---------- escolhas ---------- */
+function marcar() {
+  document.querySelectorAll('.opcoes[data-campo]').forEach(g => g.querySelectorAll('.op').forEach(b =>
+    b.setAttribute('aria-pressed', String(estado[g.dataset.campo] === b.dataset.v))));
+  document.querySelectorAll('#lados-fora .op').forEach(b => b.setAttribute('aria-pressed', String(estado.fora.has(b.dataset.l))));
+  const apto = estado.tipo === 'apartamento';
+  $('so-casa').hidden = apto; $('so-apto').hidden = !apto;
+  $('leg-frente').textContent = 'Entrada: ' + DIR[estado.orientacao];
+  atualizarAlvo();
+}
+document.querySelectorAll('.opcoes[data-campo]').forEach(g => g.addEventListener('click', e => {
+  const b = e.target.closest('.op'); if (!b) return; estado[g.dataset.campo] = b.dataset.v; marcar();
+}));
+$('lados-fora').addEventListener('click', e => {
+  const b = e.target.closest('.op'); if (!b) return;
+  if (estado.fora.has(b.dataset.l)) { if (estado.fora.size > 1) estado.fora.delete(b.dataset.l); } else estado.fora.add(b.dataset.l);
+  marcar();
+});
+['formato','predio','andar'].forEach(id => $(id).addEventListener('input', atualizarAlvo));
+$('area').addEventListener('input', () => { atualizarAlvo(); resumoVidro(); });
+
+/* ---------- janelas e portas ---------- */
+const MATERIAIS = { madeira:'Madeira', metal:'Metal', vidro:'Vidro' };
+const opcoesLado = sel => Object.entries(LADOS).map(([v, t]) => `<option value="${v}" ${sel === v ? 'selected' : ''}>${t}</option>`).join('');
+function desenharLista() {
+  $('lista-janelas').innerHTML = janelas.map((j, i) => `
+    <div class="janela" data-i="${i}">
+      <div><label>Lado</label><select data-k="lado">${opcoesLado(j.lado)}</select></div>
+      <div><label>Quantas</label><input data-k="quantidade" type="number" min="1" value="${j.quantidade}"></div>
+      <div><label>Largura (m)</label><input data-k="largura_m" type="number" min="0.1" step="0.1" value="${j.largura_m}"></div>
+      <div><label>Altura (m)</label><input data-k="altura_m" type="number" min="0.1" step="0.1" value="${j.altura_m}"></div>
+      <button title="Remover" data-del="${i}">×</button>
+      <div class="m2">${j.quantidade} × ${num(j.largura_m)} m × ${num(j.altura_m)} m = <b>${num(j.quantidade * j.largura_m * j.altura_m, 2)} m²</b> de vidro</div>
+    </div>`).join('') || '<p class="ajuda">Nenhuma janela. Clique em adicionar.</p>';
+  $('lista-portas').innerHTML = portas.map((p, i) => `
+    <div class="janela" data-i="${i}">
+      <div><label>${i === 0 ? 'Entrada (lado)' : 'Lado'}</label><select data-k="lado">${opcoesLado(p.lado)}</select></div>
+      <div><label>Material</label><select data-k="material">${Object.entries(MATERIAIS).map(([v, t]) => `<option value="${v}" ${p.material === v ? 'selected' : ''}>${t}</option>`).join('')}</select></div>
+      <div><label>Largura (m)</label><input data-k="largura_m" type="number" min="0.1" step="0.1" value="${p.largura_m}"></div>
+      <div><label>Altura (m)</label><input data-k="altura_m" type="number" min="0.1" step="0.1" value="${p.altura_m}"></div>
+      ${i === 0 ? '<span></span>' : `<button title="Remover" data-del="${i}">×</button>`}
+      <div class="m2">${num(p.largura_m)} m × ${num(p.altura_m)} m = ${num(p.largura_m * p.altura_m, 2)} m² · ${p.material === 'vidro' ? '<b>conta como vidro</b>' : 'conta como parede'}</div>
+    </div>`).join('');
+  resumoVidro(); atualizarAlvo();
+}
+function editar(lista, e) {
+  const box = e.target.closest('.janela'); if (!box) return;
+  const item = lista[+box.dataset.i], k = e.target.dataset.k;
+  item[k] = (k === 'lado' || k === 'material') ? e.target.value : Math.max(k === 'quantidade' ? 1 : 0.1, +e.target.value || 0);
+  desenharLista();
+}
+$('lista-janelas').addEventListener('change', e => editar(janelas, e));
+$('lista-portas').addEventListener('change', e => editar(portas, e));
+$('lista-janelas').addEventListener('click', e => { if (e.target.dataset.del !== undefined) { janelas.splice(+e.target.dataset.del, 1); desenharLista(); } });
+$('lista-portas').addEventListener('click', e => { if (e.target.dataset.del !== undefined) { portas.splice(+e.target.dataset.del, 1); desenharLista(); } });
+$('add-janela').onclick = () => { janelas.push({ lado:'fundos', quantidade:1, largura_m:1.2, altura_m:1.0 }); desenharLista(); };
+$('add-porta').onclick = () => { portas.push({ lado:'fundos', quantidade:1, largura_m:0.8, altura_m:2.1, material:'madeira' }); desenharLista(); };
+function resumoVidro() {
+  const vj = janelas.reduce((s, j) => s + j.quantidade * j.largura_m * j.altura_m, 0);
+  const vp = portas.filter(p => p.material === 'vidro').reduce((s, p) => s + p.quantidade * p.largura_m * p.altura_m, 0);
+  const total = vj + vp, area = +$('area').value || 1, pct = total / area * 100;
+  $('resumo-vidro').innerHTML = `Ao todo são <b>${num(total, 2)} m²</b> de vidro${vp ? ` (${num(vp, 2)} m² nas portas)` : ''}. Isso é <b>${num(pct)}%</b> do tamanho ${estado.tipo === 'apartamento' ? 'do apartamento' : 'da casa'}.` +
+    (pct > 40 ? ' É mais vidro do que as casas que a IA estudou, então ela vai usar o máximo que conhece (40%).' : '');
+}
+
+function entradaDetalhada() {
+  const apto = estado.tipo === 'apartamento';
+  return { tipo:estado.tipo, andares:+estado.andares, formato:+$('formato').value, orientacao:+estado.orientacao,
+           area_piso_m2:+$('area').value, janelas: janelas.map(j => ({ ...j })), portas: portas.map(p => ({ ...p })),
+           andar_apartamento: apto ? +$('andar').value : 1, andares_predio: apto ? +$('predio').value : 2,
+           lados_externos: apto ? [...estado.fora] : ['frente','direita','fundos','esquerda'] };
+}
+
+/* ---------- maquete 3D ---------- */
+const cv = $('cena'), ctx = cv.getContext('2d');
+let yaw = -0.75, alvoYaw = -0.75, pitch = 0.42, arrastando = false, ultimoX = 0, ocioso = 0;
+const ANG = { "2":0, "3":Math.PI/2, "4":Math.PI, "5":-Math.PI/2 };
+const atual = { w:12, d:10, h:3, giro:0, un:0 }, alvo = { ...atual };
+const MAX_VIS = 20;   // andares desenhados; prédios maiores são comprimidos só no desenho
+function andaresVis() {
+  const predio = Math.max(1, +$('predio').value || 1), andar = Math.min(Math.max(0, +$('andar').value || 0), predio - 1);
+  const n = Math.min(predio, MAX_VIS), u = predio <= MAX_VIS ? andar : Math.round(andar / (predio - 1) * (n - 1));
+  return { n, u };
+}
+function atualizarAlvo() {
+  const apto = estado.tipo === 'apartamento', r = 1 + (+$('formato').value) * 0.32;
+  const and = apto ? 1 : +estado.andares, area = Math.max(20, +$('area').value || 120) / and;
+  alvo.w = Math.sqrt(area * r); alvo.d = Math.sqrt(area / r);
+  if (apto) { const v = andaresVis(); alvo.h = v.n * 3; alvo.un = v.u; } else { alvo.h = and * 3; alvo.un = 0; }
+}
+function redimensionar() { const r = cv.getBoundingClientRect(), dpr = devicePixelRatio || 1; cv.width = r.width * dpr; cv.height = r.height * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0); }
+addEventListener('resize', redimensionar);
+function proj(p, W, H, s) { const ca = Math.cos(yaw), sa = Math.sin(yaw); const x = p[0]*ca - p[2]*sa, z = p[0]*sa + p[2]*ca; return [W/2 + x*s, H*0.74 - (p[1]*Math.cos(pitch) - z*Math.sin(pitch))*s]; }
+function visivel(n) { const z = n[0]*Math.sin(yaw) + n[2]*Math.cos(yaw); return n[1]*Math.sin(pitch) + z*Math.cos(pitch) > 0.001; }
+function luz(n) { return 0.62 + 0.38 * Math.max(0, n[0]*0.45 + n[1]*0.8 + n[2]*0.55); }
+function poli(pts, W, H, s, fill, stroke) { ctx.beginPath(); pts.forEach((p, i) => { const q = proj(p, W, H, s); i ? ctx.lineTo(...q) : ctx.moveTo(...q); }); ctx.closePath(); if (fill) { ctx.fillStyle = fill; ctx.fill(); } if (stroke) { ctx.strokeStyle = stroke; ctx.stroke(); } }
+const tom = (b, k) => `rgb(${b.map(v => Math.round(v*k)).join(',')})`;
+
+function desenhar() {
+  const r = cv.getBoundingClientRect(), W = r.width, H = r.height; ctx.clearRect(0, 0, W, H);
+  const apto = estado.tipo === 'apartamento';
+  const w = atual.w/2, d = atual.d/2, h = atual.h, rh = Math.min(atual.d, atual.w) * 0.28, g = atual.giro;
+  const s = Math.min(W / (Math.max(atual.w, atual.d) * 2.2 + 6), H / (h * 1.3 + Math.max(atual.w, atual.d) + 6));
+  const R = Math.max(atual.w, atual.d) * 0.95;
+  const anel = []; for (let i = 0; i <= 64; i++) { const a = i/64*Math.PI*2; anel.push([Math.cos(a)*R, 0, Math.sin(a)*R]); }
+  poli(anel, W, H, s, '#e8efe9');
+  const ponto = (ang, raio) => [Math.sin(ang)*raio, 0, -Math.cos(ang)*raio];
+  const qn = proj(ponto(0, R*0.9), W, H, s); ctx.fillStyle = '#6c7a80'; ctx.font = '600 12px Segoe UI,sans-serif'; ctx.textAlign = 'center'; ctx.fillText('N', qn[0], qn[1] + 4);
+  const sol = ponto(Math.PI/2, R*1.15); sol[1] = Math.min(h + 2, R*0.6);
+  const qs = proj(sol, W, H, s);
+  ctx.beginPath(); ctx.arc(qs[0], qs[1], 9, 0, Math.PI*2); ctx.fillStyle = '#f2b63c'; ctx.fill();
+  ctx.fillStyle = '#6c7a80'; ctx.font = '11px Segoe UI,sans-serif'; ctx.fillText('sol nasce', qs[0], qs[1] + 24);
+
+  const rot = p => { const c = Math.cos(g), sn = Math.sin(g); const x = p[0]*c - p[2]*sn, z = p[0]*sn + p[2]*c; return [x, p[1], -z]; };
+  poli([[-w-.5,0,-d-.5],[w+.5,0,-d-.5],[w+.5,0,d+.5],[-w-.5,0,d+.5]].map(rot), W, H, s, 'rgba(0,0,0,.06)');
+  const parede = apto ? [226, 229, 228] : [246, 240, 228], telhado = [196, 104, 74];
+  const faces = [
+    { lado:'frente',   n:[0,0,1],  p:[[-w,0,d],[w,0,d],[w,h,d],[-w,h,d]],     L:atual.w, pt:(u,y)=>[u,y,d+.02] },
+    { lado:'fundos',   n:[0,0,-1], p:[[w,0,-d],[-w,0,-d],[-w,h,-d],[w,h,-d]], L:atual.w, pt:(u,y)=>[-u,y,-d-.02] },
+    { lado:'direita',  n:[1,0,0],  p:[[w,0,d],[w,0,-d],[w,h,-d],[w,h,d]],     L:atual.d, pt:(u,y)=>[w+.02,y,-u] },
+    { lado:'esquerda', n:[-1,0,0], p:[[-w,0,-d],[-w,0,d],[-w,h,d],[-w,h,-d]], L:atual.d, pt:(u,y)=>[-w-.02,y,u] },
+  ];
+  const ret = (f, u, y0, ww, hh, cor, borda) => poli([f.pt(u-ww/2,y0), f.pt(u+ww/2,y0), f.pt(u+ww/2,y0+hh), f.pt(u-ww/2,y0+hh)].map(rot), W, H, s, cor, borda);
+  const yUn = atual.un * 3;
+  for (const f of faces) {
+    const n = rot(f.n); if (!visivel(n)) continue;
+    poli(f.p.map(rot), W, H, s, tom(parede, luz(n)), 'rgba(0,0,0,.08)');
+    if (apto) {
+      for (let a = 1; a < Math.round(h / 3); a++) poli([f.pt(-f.L/2, a*3), f.pt(f.L/2, a*3)].map(rot), W, H, s, null, 'rgba(0,0,0,.07)');
+      const fora = estado.fora.has(f.lado);
+      ret(f, 0, yUn + .05, f.L - .1, 2.9, fora ? 'rgba(42,127,111,.22)' : 'rgba(0,0,0,.07)', fora ? 'rgba(42,127,111,.7)' : null);
+      if (!fora) continue;
+    }
+    const wins = []; janelas.filter(j => j.lado === f.lado).forEach(j => { for (let q = 0; q < j.quantidade; q++) wins.push(j); });
+    const dors = []; portas.filter(p => p.lado === f.lado).forEach(p => { for (let q = 0; q < p.quantidade; q++) dors.push(p); });
+    const nAnd = apto ? 1 : Math.round(h / 3), base = apto ? yUn : 0;
+    const porAndar = Math.ceil(wins.length / nAnd) || 0;
+    for (let a = 0; a < nAnd; a++) {
+      const w0 = wins.slice(a * porAndar, (a + 1) * porAndar), meio = Math.ceil(w0.length / 2);
+      const slots = a === 0
+        ? [...w0.slice(0, meio).map(x => ['j', x]), ...dors.map(x => ['p', x]), ...w0.slice(meio).map(x => ['j', x])]
+        : w0.map(x => ['j', x]);
+      slots.forEach(([tipo, it], i) => {
+        const u = -f.L/2 + (i + .5) * f.L / slots.length, ww = Math.min(it.largura_m, f.L / slots.length * 0.85), y = base + a * 3;
+        if (tipo === 'p') ret(f, u, y + .02, ww, Math.min(it.altura_m, 2.8), it.material === 'vidro' ? 'rgba(110,170,200,.9)' : it.material === 'metal' ? '#7d8790' : '#7a5a44', 'rgba(255,255,255,.6)');
+        else ret(f, u, y + 1.0, ww, Math.min(it.altura_m, 1.9), 'rgba(110,170,200,.9)', 'rgba(255,255,255,.9)');
+      });
+    }
+  }
+  if (apto) {
+    poli([[-w,h,d],[w,h,d],[w,h,-d],[-w,h,-d]].map(rot), W, H, s, '#eceeed', 'rgba(0,0,0,.1)');
+  } else {
+    const emp = [{ n:[1,0,0], p:[[w,h,d],[w,h,-d],[w,h+rh,0]] }, { n:[-1,0,0], p:[[-w,h,-d],[-w,h,d],[-w,h+rh,0]] }];
+    emp.forEach(e => { const n = rot(e.n); if (visivel(n)) poli(e.p.map(rot), W, H, s, tom(parede, luz(n)), 'rgba(0,0,0,.08)'); });
+    const k = Math.hypot(d, rh);
+    [{ n:[0, d/k, rh/k], p:[[-w-.4,h-.2,d+.4],[w+.4,h-.2,d+.4],[w+.4,h+rh,0],[-w-.4,h+rh,0]] },
+     { n:[0, d/k, -rh/k], p:[[w+.4,h-.2,-d-.4],[-w-.4,h-.2,-d-.4],[-w-.4,h+rh,0],[w+.4,h+rh,0]] }]
+      .forEach(a => { const n = rot(a.n); if (visivel(n)) poli(a.p.map(rot), W, H, s, tom(telhado, luz(n)), 'rgba(0,0,0,.1)'); });
+  }
+}
+function quadro() {
+  for (const k of ['w','d','h','un']) atual[k] += (alvo[k] - atual[k]) * 0.08;
+  let dg = ANG[estado.orientacao] - atual.giro; dg = Math.atan2(Math.sin(dg), Math.cos(dg)); atual.giro += dg * 0.08;
+  if (!arrastando && ++ocioso > 120) alvoYaw += 0.0016;
+  yaw += (alvoYaw - yaw) * 0.12; desenhar(); requestAnimationFrame(quadro);
+}
+cv.addEventListener('pointerdown', e => { arrastando = true; ultimoX = e.clientX; ocioso = 0; cv.setPointerCapture(e.pointerId); });
+cv.addEventListener('pointermove', e => { if (arrastando) { alvoYaw += (e.clientX - ultimoX) * 0.008; ultimoX = e.clientX; } });
+cv.addEventListener('pointerup', () => { arrastando = false; ocioso = 0; });
+
+/* ---------- resultado ---------- */
+fetch('/modelos').then(r => r.json()).then(d => {
+  $('tab-modelos').innerHTML = d.modelos.map(m => `<tr><td>${m.nome}</td><td>${m.params}</td><td>${m.mae_teste !== undefined ? `MAE ${m.mae_teste} · R² ${m.r2_teste}` : `acurácia ${m.acuracia_teste}`}</td></tr>`).join('') +
+    '<tr><td>SVR resfriamento</td><td>RBF, C=1000, ε=0,1, γ=scale</td><td>MAE 0,85 · R² 0,977</td></tr>';
+}).catch(() => {});
+
+async function calcular() {
+  const box = $('resultado');
+  box.innerHTML = '<p class="ajuda">Calculando a sua conta…</p>';
+  const corpo = { detalhada: entradaDetalhada(), cep: $('cep').value, area_climatizada_m2: +$('area-ar').value || 0.1,
+    eficiencia_ar: +$('cop').value, outros_aparelhos_kwh_mes: +$('outros').value || 0, iluminacao_publica: +$('cip').value || 0, bandeira:'verde' };
+  try {
+    const [rc, ra] = await Promise.all([
+      fetch('/conta', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(corpo) }),
+      fetch('/analisar', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(corpo.detalhada) }),
+    ]);
+    const c = await rc.json(), a = await ra.json();
+    $('req').textContent = 'POST /conta\n' + JSON.stringify(corpo, null, 2);
+    $('res').textContent = `HTTP ${rc.status}\n` + JSON.stringify(c, null, 2) + `\n\nPOST /analisar → HTTP ${ra.status}\n` + JSON.stringify(a, null, 2);
+    if (!rc.ok || !ra.ok) {
+      const e = rc.ok ? a : c; const msg = typeof e.detail === 'string' ? e.detail : (e.detail || []).map(x => x.msg).join('; ');
+      box.innerHTML = `<div class="erro-box">Algo não deu certo: ${msg}</div>`; return;
+    }
+    const v = c.valor_mensal, k = c.consumo_kwh_mes, t = c.tarifa;
+    const horasLed = k.total * 1000 / 9;   // 1 kWh = 1000 Wh; lâmpada LED de 9 W
+    const partes = [['Ar-condicionado', v.climatizacao, '#2a7f6f'], ['Outros aparelhos', k.outros_aparelhos * t.final_com_impostos, '#9fc7bd'], ['Iluminação pública', v.iluminacao_publica, '#d5dfdc']].filter(p => p[1] > 0);
+    const faixaTxt = { Baixo:'gasta pouca energia para se manter confortável', 'Médio':'gasta uma quantidade média de energia', Alto:'gasta bastante energia para se manter confortável' }[a.faixa];
+    box.innerHTML = `
+      <h2>Sua conta de luz deve ficar perto de</h2>
+      <div class="grande">${brl(v.total)}</div>
+      <p class="frase">por mês, em média, em ${c.local.cidade || 'Goiás'}. São <b>${num(k.total)} kWh</b>, o mesmo que deixar uma lâmpada de LED acesa por <b>${num(horasLed / 24, 0)} dias</b> seguidos.</p>
+      <div class="barras">${partes.map(p => `<i style="flex-grow:${p[1]};background:${p[2]}"></i>`).join('')}</div>
+      <div class="itens">${partes.map(p => `<span><b style="background:${p[2]}"></b>${p[0]}: ${brl(p[1])}</span>`).join('')}</div>
+
+      <div class="compara">
+        <div><span>Para esfriar a casa a IA previu</span><strong>${num(a.resfriamento_kwh_m2_ano, 1)} kWh</strong><span>por m² por ano</span></div>
+        <div><span>Comparando com as 768 casas, a sua</span><strong>${faixaTxt}</strong></div>
+      </div>
+
+      <div class="bloco-explica">
+        <h3>Como a gente chegou nesse número</h3>
+        <ol>
+          ${a.passos.map(p => `<li>${p.replace(/(\d)\.(\d)/g, '$1,$2')}</li>`).join('')}
+          <li>A IA (um modelo chamado SVR, que aprendeu com 768 casas) previu que cada m² da casa precisa de ${num(a.resfriamento_kwh_m2_ano)} kWh por ano para ficar fresquinho.</li>
+          <li>${num(corpo.area_climatizada_m2, 0)} m² com ar × ${num(a.resfriamento_kwh_m2_ano)} kWh ÷ eficiência ${num(corpo.eficiencia_ar)} ÷ 12 meses = <b>${num(k.ar_condicionado)} kWh por mês</b> de ar-condicionado.</li>
+          <li>Somando os outros aparelhos (${num(k.outros_aparelhos)} kWh), dá <b>${num(k.total)} kWh</b>.</li>
+          <li>Cada kWh custa R$ ${num(t.sem_impostos, 3)} na Equatorial Goiás. Com ICMS (${num(t.icms*100,0)}%) e PIS/COFINS (${num(t.pis_cofins*100,0)}%), vira <b>R$ ${num(t.final_com_impostos, 3)}</b>.</li>
+          <li>${num(k.total)} kWh × R$ ${num(t.final_com_impostos, 3)}${v.iluminacao_publica ? ` + ${brl(v.iluminacao_publica)} de iluminação pública` : ''} = <b>${brl(v.total)}</b>.</li>
+        </ol>
+      </div>
+      <p class="aviso">É uma estimativa. A IA aprendeu com casas simuladas num clima mais frio que o de Goiás, então nos meses quentes a conta pode passar desse valor. A bandeira de novembro de 2026 é verde (sem cobrança extra). Confira o preço do kWh numa conta sua.</p>`;
+  } catch (e) { box.innerHTML = `<div class="erro-box">Não consegui falar com o servidor. Ele está ligado?</div>`; }
+}
+
+redimensionar(); marcar(); desenharLista(); irPara(1);
+for (const k in alvo) atual[k] = alvo[k]; atual.giro = ANG[estado.orientacao];
+requestAnimationFrame(quadro);
+</script>
+</body>
+</html>

@@ -1,0 +1,28 @@
+{
+  "_leia_me": "Valores usados na estimativa da conta de luz. Atualize quando houver novo reajuste ou bandeira. Cada item traz a fonte e a data de consulta.",
+  "distribuidora": "Equatorial Goiás",
+  "consultado_em": "2026-11-12",
+  "tarifa_b1_sem_impostos": {
+    "valor": 0.954,
+    "unidade": "R$/kWh (TUSD 0,617 + TE 0,337)",
+    "vigencia": "desde 22/10/2026",
+    "fonte": "calculadoraenergia.com.br/tarifa/equatorial-go (fonte não oficial; confirmar na Resolução Homologatória da ANEEL)",
+    "observacao": "Reajuste residencial B1 de 7,36% aprovado pela ANEEL em 20/10/2026, vigente a partir de 22/10/2026."
+  },
+  "icms": {
+    "valor": 0.19,
+    "fonte": "17% de alíquota geral + 2% de adicional mantido (decisão do STF de 05/05/2026, noticiada pelo Atlas Público); a Calculadora de Energia também usa 19% atribuindo à SEFAZ-GO"
+  },
+  "pis_cofins": {
+    "valor": 0.09,
+    "fonte": "Estimativa da Calculadora de Energia. A alíquota efetiva varia mês a mês e aparece na própria conta."
+  },
+  "bandeiras": {
+    "_fonte": "ANEEL / Agência Brasil, 30/10/2026: bandeira verde em novembro de 2026; valores das bandeiras por 100 kWh",
+    "verde": 0.0,
+    "amarela": 0.01885,
+    "vermelha_1": 0.04463
+  },
+  "bandeira_vigente": "verde",
+  "faixa_cep_goias": ["72800000", "76799999"]
+}
